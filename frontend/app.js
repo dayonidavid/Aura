@@ -11,6 +11,7 @@ const connectionLabel = document.querySelector("#connection-label");
 const systemOs = document.querySelector("#system-os");
 const systemPython = document.querySelector("#system-python");
 const systemCore = document.querySelector("#system-core");
+const systemBrain = document.querySelector("#system-brain");
 
 function addMessage(role, text) {
   const item = document.createElement("div");
@@ -89,6 +90,9 @@ async function refreshStatus() {
     systemOs.textContent = `${data.system.platform} ${data.system.platform_release}`;
     systemPython.textContent = data.system.python;
     systemCore.textContent = "Local";
+    systemBrain.textContent = data.system.ai_enabled
+      ? `OpenAI ${data.system.ai_model}`
+      : "Offline";
     renderFeed(events, data.events, "No activity yet.", "action", "detail");
     renderFeed(memories, data.memories, "No memories saved yet.", "kind", "content");
   } catch (error) {

@@ -7,7 +7,6 @@ import sqlite3
 import subprocess
 import sys
 import time
-import urllib.parse
 import webbrowser
 
 
@@ -19,10 +18,49 @@ HOST = "127.0.0.1"
 PORT = int(os.environ.get("AURA_PORT", "8765"))
 
 
+def load_env_file() -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        clean = line.strip()
+        if not clean or clean.startswith("#") or "=" not in clean:
+            continue
+        key, value = clean.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_env_file()
+AURA_MODEL = os.environ.get("AURA_MODEL", "gpt-5.5")
+
+
 class AuraCore:
     def __init__(self) -> None:
         DATA_DIR.mkdir(exist_ok=True)
+        self.ai_error = ""
+        self.ai_client = self._create_ai_client()
         self._init_db()
+
+    def _create_ai_client(self):
+        if not os.environ.get("OPENAI_API_KEY"):
+            self.ai_error = "OPENAI_API_KEY is not set."
+            return None
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            self.ai_error = "The openai Python package is not installed."
+            return None
+
+        try:
+            return OpenAI()
+        except Exception as exc:
+            self.ai_error = f"Could not initialize OpenAI client: {exc}"
+            return None
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(DB_PATH)
@@ -98,6 +136,9 @@ class AuraCore:
             "machine": platform.machine(),
             "python": platform.python_version(),
             "cwd": str(ROOT),
+            "ai_enabled": self.ai_client is not None,
+            "ai_model": AURA_MODEL,
+            "ai_error": self.ai_error,
         }
 
     def open_target(self, target: str) -> dict:
@@ -160,10 +201,15 @@ class AuraCore:
             return {
                 "reply": (
                     "I can remember notes, report system status, open websites or apps, "
-                    "and keep an activity log. Next upgrades: voice, model intelligence, "
-                    "file search, reminders, and deeper Windows controls."
+                    "keep an activity log, and use an OpenAI model for natural conversation "
+                    "when the API key is configured. Next upgrades: voice, file search, "
+                    "reminders, and deeper Windows controls."
                 )
             }
+
+        ai_reply = self.ask_ai(clean)
+        if ai_reply:
+            return {"reply": ai_reply}
 
         recent = self.memories(3)
         memory_hint = ""
@@ -171,11 +217,59 @@ class AuraCore:
             memory_hint = " I am also keeping local memory for this project."
         return {
             "reply": (
-                "AURA is online. I can take simple commands now: try 'status', "
-                "'remember my favorite color is blue', or 'open https://github.com'."
+                "AURA is online, but the OpenAI brain is not configured yet. Add "
+                "OPENAI_API_KEY to your local .env file, install the openai package, "
+                "then restart me. For now, try 'status', 'remember my favorite color is blue', "
+                "or 'open https://github.com'."
                 + memory_hint
             )
         }
+
+    def ask_ai(self, message: str) -> str:
+        if self.ai_client is None:
+            return ""
+
+        memory_lines = [
+            f"- {item['content']}" for item in reversed(self.memories(5))
+        ]
+        memory_context = "\n".join(memory_lines) or "- No saved memories yet."
+        status = self.system_status()
+
+        instructions = f"""
+You are AURA, a futuristic personal desktop AI assistant for David.
+You are calm, concise, capable, and a little sleek. You help with daily tasks,
+computer work, coding, planning, and learning.
+
+Current local system:
+- Platform: {status['platform']} {status['platform_release']}
+- Machine: {status['machine']}
+
+Current saved memories:
+{memory_context}
+
+Important behavior:
+- If the user asks for a local action, explain what you can do now and what command
+  they can type, such as "open Safari" or "remember ...".
+- Do not pretend you have performed OS actions unless the local backend did it.
+- Keep answers practical and direct.
+""".strip()
+
+        try:
+            response = self.ai_client.responses.create(
+                model=AURA_MODEL,
+                instructions=instructions,
+                input=message,
+            )
+        except Exception as exc:
+            self.ai_error = str(exc)
+            self.log_event("ai_error", str(exc))
+            return (
+                "I tried to use the OpenAI brain, but it failed. Check your API key, "
+                "model access, and internet connection."
+            )
+
+        self.log_event("ai_reply", AURA_MODEL)
+        return response.output_text.strip()
 
 
 core = AuraCore()

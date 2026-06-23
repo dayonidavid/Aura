@@ -6,6 +6,23 @@ This first build is a local desktop-style web app with a Python backend, SQLite 
 
 ## Run
 
+Install dependencies:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and replace `your_api_key_here` with your OpenAI API key.
+Never commit `.env` to GitHub.
+
+Start AURA:
+
 ```bash
 python3 backend/app.py
 ```
@@ -19,6 +36,8 @@ http://127.0.0.1:8765
 On Windows, use:
 
 ```powershell
+py -m pip install -r requirements.txt
+copy .env.example .env
 py backend/app.py
 ```
 
@@ -29,12 +48,12 @@ py backend/app.py
 - Persistent memory using SQLite
 - Basic system status
 - Open websites and selected local apps
+- OpenAI-powered responses when `OPENAI_API_KEY` is configured
 - Cross-platform backend structure
 
 ## Planned Capabilities
 
 - Voice input and speech output
-- OpenAI model integration
 - Screen understanding
 - File search and summarization
 - Reminders and daily briefings
