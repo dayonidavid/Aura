@@ -18,8 +18,26 @@ Create a local environment file:
 cp .env.example .env
 ```
 
-Then edit `.env` and replace `your_api_key_here` with your OpenAI API key.
-Never commit `.env` to GitHub.
+Then edit `.env` for the AI brain you want. Never commit `.env` to GitHub.
+
+For free local AI on a Windows PC, install Ollama, then run:
+
+```powershell
+ollama pull llama3.1:8b
+```
+
+Use this local-only `.env` setup:
+
+```text
+AURA_PROVIDER=ollama
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.1:8b
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.5
+```
+
+For OpenAI API mode, set `AURA_PROVIDER=openai` and add your `OPENAI_API_KEY`.
+For automatic mode, set `AURA_PROVIDER=auto`; AURA will try Ollama first, then OpenAI.
 
 Start AURA:
 
@@ -48,6 +66,7 @@ py backend/app.py
 - Persistent memory using SQLite
 - Basic system status
 - Open websites and selected local apps
+- Local AI through Ollama when configured
 - OpenAI-powered responses when `OPENAI_API_KEY` is configured
 - Cross-platform backend structure
 

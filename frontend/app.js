@@ -90,9 +90,13 @@ async function refreshStatus() {
     systemOs.textContent = `${data.system.platform} ${data.system.platform_release}`;
     systemPython.textContent = data.system.python;
     systemCore.textContent = "Local";
-    systemBrain.textContent = data.system.ai_enabled
-      ? `OpenAI ${data.system.ai_model}`
-      : "Offline";
+    if (data.system.ai_provider === "ollama") {
+      systemBrain.textContent = `Local ${data.system.ai_model}`;
+    } else if (data.system.ai_provider === "openai") {
+      systemBrain.textContent = `OpenAI ${data.system.ai_model}`;
+    } else {
+      systemBrain.textContent = data.system.ai_enabled ? data.system.ai_model : "Offline";
+    }
     renderFeed(events, data.events, "No activity yet.", "action", "detail");
     renderFeed(memories, data.memories, "No memories saved yet.", "kind", "content");
   } catch (error) {

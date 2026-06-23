@@ -7,6 +7,8 @@ import sqlite3
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 
 
@@ -35,19 +37,22 @@ def load_env_file() -> None:
 
 
 load_env_file()
-AURA_MODEL = os.environ.get("AURA_MODEL", "gpt-5.5")
+AURA_PROVIDER = os.environ.get("AURA_PROVIDER", "auto").lower()
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", os.environ.get("AURA_MODEL", "gpt-5.5"))
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 
 
 class AuraCore:
     def __init__(self) -> None:
         DATA_DIR.mkdir(exist_ok=True)
         self.ai_error = ""
-        self.ai_client = self._create_ai_client()
+        self.ai_provider = "offline"
+        self.openai_client = self._create_openai_client()
         self._init_db()
 
-    def _create_ai_client(self):
+    def _create_openai_client(self):
         if not os.environ.get("OPENAI_API_KEY"):
-            self.ai_error = "OPENAI_API_KEY is not set."
             return None
 
         try:
@@ -136,10 +141,22 @@ class AuraCore:
             "machine": platform.machine(),
             "python": platform.python_version(),
             "cwd": str(ROOT),
-            "ai_enabled": self.ai_client is not None,
-            "ai_model": AURA_MODEL,
+            "ai_enabled": self.ai_provider != "offline" or self.openai_client is not None,
+            "ai_provider": self.ai_provider,
+            "ai_model": self.ai_model_label(),
             "ai_error": self.ai_error,
         }
+
+    def ai_model_label(self) -> str:
+        if self.ai_provider == "ollama":
+            return OLLAMA_MODEL
+        if self.ai_provider == "openai":
+            return OPENAI_MODEL
+        if AURA_PROVIDER == "ollama":
+            return OLLAMA_MODEL
+        if AURA_PROVIDER == "openai":
+            return OPENAI_MODEL
+        return f"auto: {OLLAMA_MODEL} / {OPENAI_MODEL}"
 
     def open_target(self, target: str) -> dict:
         target = target.strip()
@@ -201,9 +218,9 @@ class AuraCore:
             return {
                 "reply": (
                     "I can remember notes, report system status, open websites or apps, "
-                    "keep an activity log, and use an OpenAI model for natural conversation "
-                    "when the API key is configured. Next upgrades: voice, file search, "
-                    "reminders, and deeper Windows controls."
+                    "keep an activity log, and use a local Ollama model or OpenAI for natural "
+                    "conversation when configured. Next upgrades: voice, file search, reminders, "
+                    "and deeper Windows controls."
                 )
             }
 
@@ -217,25 +234,46 @@ class AuraCore:
             memory_hint = " I am also keeping local memory for this project."
         return {
             "reply": (
-                "AURA is online, but the OpenAI brain is not configured yet. Add "
-                "OPENAI_API_KEY to your local .env file, install the openai package, "
-                "then restart me. For now, try 'status', 'remember my favorite color is blue', "
-                "or 'open https://github.com'."
+                "AURA is online, but no AI brain is available yet. For a free local brain, "
+                "install Ollama, pull a model, and set AURA_PROVIDER=ollama in .env. "
+                "For now, try 'status', 'remember my favorite color is blue', or "
+                "'open https://github.com'."
                 + memory_hint
             )
         }
 
     def ask_ai(self, message: str) -> str:
-        if self.ai_client is None:
-            return ""
+        instructions = self.ai_instructions()
 
-        memory_lines = [
-            f"- {item['content']}" for item in reversed(self.memories(5))
-        ]
+        if AURA_PROVIDER in {"auto", "ollama"}:
+            reply = self.ask_ollama(
+                instructions,
+                message,
+                log_errors=AURA_PROVIDER == "ollama",
+            )
+            if reply:
+                self.ai_provider = "ollama"
+                self.ai_error = ""
+                return reply
+            if AURA_PROVIDER == "ollama":
+                return ""
+
+        if AURA_PROVIDER in {"auto", "openai"}:
+            reply = self.ask_openai(instructions, message)
+            if reply:
+                self.ai_provider = "openai"
+                self.ai_error = ""
+                return reply
+
+        self.ai_provider = "offline"
+        return ""
+
+    def ai_instructions(self) -> str:
+        memory_lines = [f"- {item['content']}" for item in reversed(self.memories(5))]
         memory_context = "\n".join(memory_lines) or "- No saved memories yet."
         status = self.system_status()
 
-        instructions = f"""
+        return f"""
 You are AURA, a futuristic personal desktop AI assistant for David.
 You are calm, concise, capable, and a little sleek. You help with daily tasks,
 computer work, coding, planning, and learning.
@@ -254,9 +292,45 @@ Important behavior:
 - Keep answers practical and direct.
 """.strip()
 
+    def ask_ollama(self, instructions: str, message: str, log_errors: bool = True) -> str:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": message},
+            ],
+        }
+        request = urllib.request.Request(
+            f"{OLLAMA_URL.rstrip('/')}/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
         try:
-            response = self.ai_client.responses.create(
-                model=AURA_MODEL,
+            with urllib.request.urlopen(request, timeout=120) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            self.ai_error = f"Ollama unavailable: {exc}"
+            if log_errors:
+                self.log_event("ai_error", self.ai_error)
+            return ""
+
+        content = data.get("message", {}).get("content", "").strip()
+        if content:
+            self.log_event("ai_reply", f"ollama:{OLLAMA_MODEL}")
+        return content
+
+    def ask_openai(self, instructions: str, message: str) -> str:
+        if self.openai_client is None:
+            if not self.ai_error:
+                self.ai_error = "OPENAI_API_KEY is not set."
+            return ""
+
+        try:
+            response = self.openai_client.responses.create(
+                model=OPENAI_MODEL,
                 instructions=instructions,
                 input=message,
             )
@@ -268,7 +342,7 @@ Important behavior:
                 "model access, and internet connection."
             )
 
-        self.log_event("ai_reply", AURA_MODEL)
+        self.log_event("ai_reply", f"openai:{OPENAI_MODEL}")
         return response.output_text.strip()
 
 
