@@ -135,14 +135,17 @@ class AuraCore:
         ]
 
     def system_status(self) -> dict:
+        display_provider = self.ai_provider
+        if display_provider == "offline" and AURA_PROVIDER in {"auto", "ollama", "openai"}:
+            display_provider = AURA_PROVIDER
         return {
             "platform": platform.system(),
             "platform_release": platform.release(),
             "machine": platform.machine(),
             "python": platform.python_version(),
             "cwd": str(ROOT),
-            "ai_enabled": self.ai_provider != "offline" or self.openai_client is not None,
-            "ai_provider": self.ai_provider,
+            "ai_enabled": display_provider != "offline" or self.openai_client is not None,
+            "ai_provider": display_provider,
             "ai_model": self.ai_model_label(),
             "ai_error": self.ai_error,
         }

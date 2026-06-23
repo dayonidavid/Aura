@@ -62,6 +62,8 @@ py backend/app.py
 ## Current Capabilities
 
 - Futuristic AURA command interface
+- Animated global command visualization
+- Voice input and spoken replies in supported browsers
 - Local chat endpoint with assistant responses
 - Persistent memory using SQLite
 - Basic system status
@@ -72,7 +74,6 @@ py backend/app.py
 
 ## Planned Capabilities
 
-- Voice input and speech output
 - Screen understanding
 - File search and summarization
 - Reminders and daily briefings

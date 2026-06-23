@@ -35,15 +35,27 @@
 
       <section class="core-stage">
         <div class="topline">
-          <span id="connection-dot" class="connection-dot"></span>
-          <span id="connection-label">Connecting</span>
+          <div>
+            <span id="connection-dot" class="connection-dot"></span>
+            <span id="connection-label">Connecting</span>
+          </div>
+          <div class="voice-state">
+            <span id="voice-label">Voice standby</span>
+          </div>
         </div>
 
-        <div class="aura-core" aria-label="AURA core visualization">
-          <div class="ring ring-one"></div>
-          <div class="ring ring-two"></div>
-          <div class="ring ring-three"></div>
-          <div class="orb">
+        <div class="globe-stage" aria-label="AURA global command visualization">
+          <canvas id="globe-canvas" width="900" height="620"></canvas>
+          <div class="scanline"></div>
+          <div class="globe-hud hud-nw">
+            <span>Network</span>
+            <strong>Global</strong>
+          </div>
+          <div class="globe-hud hud-se">
+            <span>Command Link</span>
+            <strong id="hud-state">Online</strong>
+          </div>
+          <div class="core-sigil">
             <span>AURA</span>
           </div>
         </div>
@@ -64,6 +76,17 @@
         </div>
 
         <form id="command-form" class="command-bar">
+          <button
+            id="voice-button"
+            type="button"
+            class="voice-button"
+            title="Talk to AURA"
+            aria-label="Talk to AURA"
+          >
+            <span class="voice-bars" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+          </button>
           <input
             id="command-input"
             type="text"
