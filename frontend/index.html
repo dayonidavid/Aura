@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AURA</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="panel left-panel">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <h1>AURA</h1>
+            <p>Adaptive User Response Assistant</p>
+          </div>
+        </div>
+
+        <section>
+          <h2>Quick Actions</h2>
+          <div class="action-grid">
+            <button data-command="status">Status</button>
+            <button data-command="what can you do">Abilities</button>
+            <button data-command="open https://github.com/dayonidavid/Aura">GitHub</button>
+            <button data-command="remember AURA should work on Mac and Windows">Remember</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Activity</h2>
+          <div id="events" class="feed"></div>
+        </section>
+      </aside>
+
+      <section class="core-stage">
+        <div class="topline">
+          <span id="connection-dot" class="connection-dot"></span>
+          <span id="connection-label">Connecting</span>
+        </div>
+
+        <div class="aura-core" aria-label="AURA core visualization">
+          <div class="ring ring-one"></div>
+          <div class="ring ring-two"></div>
+          <div class="ring ring-three"></div>
+          <div class="orb">
+            <span>AURA</span>
+          </div>
+        </div>
+
+        <div class="status-strip">
+          <div>
+            <span>Mode</span>
+            <strong id="mode">Idle</strong>
+          </div>
+          <div>
+            <span>Memory</span>
+            <strong id="memory-count">0</strong>
+          </div>
+          <div>
+            <span>Platform</span>
+            <strong id="platform">Unknown</strong>
+          </div>
+        </div>
+
+        <form id="command-form" class="command-bar">
+          <input
+            id="command-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Ask AURA or type a command..."
+          />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <aside class="panel right-panel">
+        <section>
+          <h2>Dialogue</h2>
+          <div id="chat" class="chat"></div>
+        </section>
+
+        <section>
+          <h2>Memory</h2>
+          <div id="memories" class="feed"></div>
+        </section>
+
+        <section>
+          <h2>System</h2>
+          <dl class="system-list">
+            <div>
+              <dt>OS</dt>
+              <dd id="system-os">--</dd>
+            </div>
+            <div>
+              <dt>Python</dt>
+              <dd id="system-python">--</dd>
+            </div>
+            <div>
+              <dt>Core</dt>
+              <dd id="system-core">Local</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
